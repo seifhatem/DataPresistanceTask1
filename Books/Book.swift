@@ -11,4 +11,11 @@ import Foundation
 struct Book: Codable {
 	var title: String
 	var author: String
+    
+    func covertToCSVFormat()->String{
+        return title + "," + author + "\n"
+    }
+    
+
 }
+

@@ -13,7 +13,7 @@ class ViewController: UIViewController {
     @IBOutlet weak var tableView: UITableView!
     let appColorKey = "AppColor"
     var books: [Book] = []
-    let fileURL = URL(fileURLWithPath: "books", relativeTo: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0])
+    var fileURL = URL(fileURLWithPath: "books", relativeTo: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]).appendingPathExtension("csv")
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -93,55 +93,84 @@ class ViewController: UIViewController {
         present(alert, animated: true)
     }
     
-    func save() {
-        
-        do {
-            // let encodedBooks = try JSONEncoder().encode(books)
-            let encodedBooks = try PropertyListEncoder().encode(books)
-            
-            try encodedBooks.write(to: fileURL)
-            //print("File saved: \(fileURL.absoluteURL)")
-        } catch {
-            print(error.localizedDescription)
+    func createCSVFile()->String{
+        var csvFile = ""
+        for book in books{
+            csvFile += book.covertToCSVFormat()
         }
-        
+        if(csvFile.count>1){csvFile.removeLast(2)}
+            
+        return csvFile
+    }
+    
+    func stringToBook(bookString: String)->Book?{
+        let bookArray = bookString.split(separator: ",")
+        if bookArray.count == 2{
+            return Book(title: String(bookArray[0]), author: String(bookArray[1]))
+        }
+        return  nil
     }
     
     func loadBooks() {
         do {
-            let encodedBooks = try Data(contentsOf: fileURL)
-            self.books = try PropertyListDecoder().decode(Array<Book>.self, from: encodedBooks)
+            let csvBooks = try Data(contentsOf: fileURL)
+            let csvBooksString = String(bytes: csvBooks, encoding: .utf8)
+            
+            let arrayOfBooks = csvBooksString?.split(separator: "\n")
+            
+            if let arrayOfBooks = arrayOfBooks{
+            for book in arrayOfBooks{
+                if let generatedBook = stringToBook(bookString: String(book)){
+                self.books.append(generatedBook)
+                }
+            }
+            }
+            
             
         } catch {
             print("Unable to read the file")
         }
     }
-}
+    
+    func save() {
+        let csvBooks = createCSVFile()
+        do {
+            try  csvBooks.write(to: fileURL, atomically: true, encoding: String.Encoding.utf8)
+        } catch {
+           print("Failed writing to file")
+        }
 
-// MARK: - UITableViewDataSource
-extension ViewController: UITableViewDataSource {
-    func tableView(_ tableView: UITableView,
-                   numberOfRowsInSection section: Int) -> Int {
-        return books.count
-    }
+        
     
-    func tableView(_ tableView: UITableView,
-                   cellForRowAt indexPath: IndexPath)
-        -> UITableViewCell {
-            
-            let book = books[indexPath.row]
-            let cell =
-                tableView.dequeueReusableCell(withIdentifier: "BookTableViewCell",
-                                              for: indexPath) as! BookTableViewCell
-            
-            cell.setTitle(title: book.title)
-            cell.setAuthor(author: book.author)
-            return cell
     }
+}
     
-    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        self.books.remove(at: indexPath.row)
-        self.save()
-        self.tableView.reloadData()
-    }
+    
+    
+    // MARK: - UITableViewDataSource
+    extension ViewController: UITableViewDataSource {
+        func tableView(_ tableView: UITableView,
+                       numberOfRowsInSection section: Int) -> Int {
+            return books.count
+        }
+        
+        func tableView(_ tableView: UITableView,
+                       cellForRowAt indexPath: IndexPath)
+            -> UITableViewCell {
+                
+                let book = books[indexPath.row]
+                let cell =
+                    tableView.dequeueReusableCell(withIdentifier: "BookTableViewCell",
+                                                  for: indexPath) as! BookTableViewCell
+                
+                cell.setTitle(title: book.title)
+                cell.setAuthor(author: book.author)
+                return cell
+        }
+        
+        func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+            self.books.remove(at: indexPath.row)
+            self.save()
+            self.tableView.reloadData()
+        }
 }
